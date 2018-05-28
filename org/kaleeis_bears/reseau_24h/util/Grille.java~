@@ -1,0 +1,163 @@
+package org.kaleeis_bears.reseau_24h.util;
+
+import java.util.LinkedList;
+
+public class Grille {
+
+	class Coordonnees {
+		public final int x, y;
+
+		public Coordonnees(final int x, final int y) {
+			this.x = x;
+			this.y = y;
+		}
+
+		public String toString() {
+			return "(" + x + ", " + y + ")";
+		}
+	}
+
+	class ElementGrille {
+		public final int x, y;
+		public final Object element;
+
+		public ElementGrille(Object element, int x, int y) {
+			this.element = element;
+			this.x = x;
+			this.y = y;
+		}
+	}
+
+	static public final int VIDE = 0;
+	static public final int PLEIN = 1;
+
+	private int prochainID = 2;
+	private final LinkedList<ElementGrille> objets;
+	private final boolean[][] matrice;
+	
+	public final int longueur, largeur;
+
+	public Grille(int longueur, int largeur) {
+		this.longueur = longueur;
+		this.largeur = largeur;
+		this.matrice = new boolean[longueur][largeur];
+		this.objets = new LinkedList<>();
+	}
+	public Grille(boolean[][] matrice) {
+		this.longueur = matrice.length;
+		this.largeur = matrice[0].length;
+		this.matrice = matrice;
+		this.objets = new LinkedList<>();
+	}
+	public Grille(int[][] matrice, int vide) {
+		this(matrice.length, matrice[0].length);
+		for (int x = 0; x < this.longueur; x++)
+			for (int y = 0; y < this.largeur; y++)
+				this.matrice[x][y] = (matrice[x][y] == vide);
+	}
+	public Grille(int[][] matrice, Object[] typeElements) {
+		this(matrice.length, matrice[0].length);
+		for (int x = 0; x < this.longueur; x++)
+			for (int y = 0; y < this.largeur; y++)
+			{
+				this.matrice[x][y] = (matrice[x][y] == 1);
+				if (matrice[x][y] > 1)
+					this.placer(typeElements[matrice[x][y] - 2], x, y);
+			}
+	}
+	public Grille(int[][] matrice, int vide, int plein, Object[] typeElements) {
+		this(matrice.length, matrice[0].length);
+		for (int x = 0; x < this.longueur; x++)
+			for (int y = 0; y < this.largeur; y++)
+			{
+				this.matrice[x][y] = (matrice[x][y] == plein);
+				if (matrice[x][y] != vide && matrice[x][y] != plein)
+					this.placer(typeElements[matrice[x][y]], x, y);
+			}
+	}
+
+	public void setMur(int x, int y, boolean plein) {
+		this.matrice[x][y] = plein;
+	}
+
+	public void placer(Object element, int x, int y) {
+		this.objets.add(new ElementGrille(element, x, y));
+	}
+
+	public boolean estSurLaGrille(int x, int y) {
+		return (x >= 0 && x < this.longueur) && (y >= 0 && y < this.largeur);
+	}
+	public boolean estMur(int x, int y) {
+		return this.matrice[x][y];
+	}
+
+	public Object[] getObjetsGrille() {
+		Object[] objs = new Object[this.objets.size()];
+		int i = 0;
+		for (ElementGrille obj : this.objets)
+			objs[i++] = obj.element;
+		return objs;
+	}
+
+	public Graphe creerGraphe() {
+		Object[] objs = this.getObjetsGrille();
+		int[][] distances = this.distances();
+		Graphe graphe = new Graphe(objs);
+		for (int x = 0; x < distances.length; x++)
+			for (int y = 0; y < distances.length; y++)
+				if (distances[x][y] != Integer.MAX_VALUE)
+					graphe.setArc(x, y, distances[x][y]);
+		return graphe;
+	}
+	private int[][] distances() {
+		int i = 1;
+		int[][] elements = new int[this.objets.size()][this.objets.size()];
+		int[][] distancesElements = new int[this.objets.size()][this.objets.size()];
+		for (ElementGrille el : this.objets)
+			elements[el.x][el.y] = i++;
+		for (int x = 0; x < distancesElements.length; x++)
+			for (int y = 0; y < distancesElements[0].length; y++)
+				distancesElements[x][y] = Integer.MAX_VALUE;
+		for (ElementGrille el : this.objets)
+		{
+			Coordonnees actuel = new Coordonnees(el.x, el.y), enfant;
+			Coordonnees[][] historique = new Coordonnees[this.longueur][this.largeur];
+			int[][] distances = new int[this.longueur][this.largeur];
+			LinkedList<Coordonnees> file = new LinkedList<>();
+			historique[actuel.x][actuel.y] = actuel;
+			file.add(actuel);
+			while (file.size() != 0)
+			{
+				actuel = file.remove();
+				// System.out.println(actuel + " " + elements[el.y][el.y]);
+				for (double a = 0; a < 2; a += 0.5)
+				{
+					enfant = new Coordonnees((int)Math.cos(Math.PI * a) + actuel.x, (int)Math.sin(Math.PI * a) + actuel.y);
+					// System.out.print(actuel + " -> " + enfant);
+					if (this.estSurLaGrille(enfant.x, enfant.y) &&
+						!this.estMur(enfant.x, enfant.y) &&
+						historique[enfant.x][enfant.y] == null)
+					{
+						// System.out.println(" ×");
+						file.add(enfant);
+						distances[enfant.x][enfant.y] = distances[actuel.x][actuel.y] + 1;
+						historique[enfant.x][enfant.y] = actuel;
+						// System.out.println("  " + enfant + " " + elements[enfant.y][enfant.y]);
+						if (elements[enfant.x][enfant.y] != 0 &&
+							distancesElements[elements[enfant.x][enfant.y] - 1][elements[el.x][el.y] - 1] == Integer.MAX_VALUE)
+						{
+							distancesElements[elements[enfant.x][enfant.y] - 1][elements[el.x][el.y] - 1] =
+								distances[enfant.x][enfant.y];
+							distancesElements[elements[el.x][el.y] - 1][elements[enfant.x][enfant.y] - 1] =
+								distances[enfant.x][enfant.y];
+						}
+					}
+					// else
+						// System.out.println();
+				}
+			}
+		}
+		return distancesElements;
+	}
+
+}

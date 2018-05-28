@@ -1,0 +1,17 @@
+#!/bin/bash
+
+cd "$(dirname $(readlink -f $0))"
+
+CLASSE_PRINCIPALE=org.kaleeis_bears.reseau_24h.Main
+DOSSIER_BASE=org/kaleeis_bears/reseau_24h
+
+javac \
+$DOSSIER_BASE/versions_ia/*.java \
+$DOSSIER_BASE/*.java \
+$DOSSIER_BASE/util/*.java \
+$DOSSIER_BASE/net/*.java
+
+if [[ $? == 0 ]]
+then java $CLASSE_PRINCIPALE $*
+else echo -e "\e[1;31mLa compilation a échouée.\e[0m" && exit 1
+fi
